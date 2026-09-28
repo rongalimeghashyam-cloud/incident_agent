@@ -4,6 +4,7 @@ from typing import Optional, List
 from app.db import init_db, get_session
 from app.agent import ingest_incident, add_runbook, find_similar_incidents
 from app.models import Incident, Runbook
+from app.llm import suggest_resolution
 
 app = FastAPI(title="Hindsight Incident Agent")
 
@@ -56,3 +57,26 @@ def search_similar(payload: SearchIn):
 def create_runbook(payload: RunbookIn):
     rb = add_runbook(payload.name, payload.content, payload.tags)
     return {"id": rb.id}
+
+
+@app.get("/incidents/{incident_id}/suggest")
+def suggest_for_incident(incident_id: int):
+    with get_session() as s:
+        inc = s.get(Incident, incident_id)
+        if not inc:
+            raise HTTPException(status_code=404, detail="Not found")
+        # find similar incidents
+        sims = find_similar_incidents(inc.title + "\n" + inc.description, top_k=5)
+        # load full incident records for the similar ids
+        similar_full = []
+        for sid, score in sims:
+            rec = s.get(Incident, sid)
+            if rec:
+                similar_full.append({
+                    "id": rec.id,
+                    "title": rec.title,
+                    "root_cause": rec.root_cause,
+                    "resolution": rec.resolution,
+                })
+        suggestion = suggest_resolution({"title": inc.title, "description": inc.description, "root_cause": inc.root_cause, "resolution": inc.resolution}, similar_full)
+        return {"suggestion": suggestion, "similar": sims}

@@ -40,3 +40,17 @@ This will store incidents and build a FAISS vector index for fast similarity sea
 Frontend
 
 See `frontend/README.md` for instructions to run the minimal React UI.
+
+Windows startup (PowerShell)
+
+```powershell
+# create venv (if needed) and run backend
+python -m venv .venv
+. .\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+.\run_backend.ps1
+```
+
+Notes on FAISS and Windows
+
+- FAISS may not have prebuilt wheels on Windows. The project falls back to a NumPy-based vector search if FAISS isn't available. To use FAISS on Linux/macOS, install via `pip install faiss-cpu`.
